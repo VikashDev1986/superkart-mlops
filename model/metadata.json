@@ -1,0 +1,25 @@
+{
+  "model_type": "Random Forest",
+  "best_params": {
+    "model__max_depth": 10,
+    "model__min_samples_split": 5,
+    "model__n_estimators": 300
+  },
+  "cv_rmse": 285.9892,
+  "test_rmse": 279.8022,
+  "test_mae": 113.7876,
+  "test_r2": 0.9314,
+  "test_mape_pct": 4.0621,
+  "features": [
+    "Product_Weight",
+    "Product_Allocated_Area",
+    "Product_MRP",
+    "Store_Establishment_Year",
+    "Product_Sugar_Content",
+    "Product_Type",
+    "Store_Size",
+    "Store_Location_City_Type",
+    "Store_Type"
+  ],
+  "target": "Product_Store_Sales_Total"
+}

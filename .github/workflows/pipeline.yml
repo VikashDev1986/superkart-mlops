@@ -1,0 +1,149 @@
+# ─────────────────────────────────────────────────────────────────────────
+# SuperKart MLOps — End-to-End CI/CD Pipeline
+#
+# Trigger events:
+#   push / PR  → main      : Full pipeline run
+#   workflow_dispatch      : Manual one-click run
+#   schedule (weekly)      : Automated re-train every Monday 02:00 UTC
+#
+# Required GitHub Secrets  (Settings → Secrets → Actions):
+#   HF_TOKEN   : Hugging Face write token
+#   GH_PAT     : GitHub PAT with repo write scope (to push results back)
+#
+# Required GitHub Variables (Settings → Variables → Actions):
+#   HF_USERNAME : vikashHugFace
+# ─────────────────────────────────────────────────────────────────────────
+name: SuperKart MLOps Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "0 2 * * 1"   # Every Monday at 02:00 UTC
+
+env:
+  PYTHON_VERSION: "3.10"
+  HF_USERNAME: ${{ vars.HF_USERNAME }}
+
+jobs:
+  # ── Job 1 : Data Preparation ──────────────────────────────────────────
+  data-preparation:
+    name: "1 · Data Preparation"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run data preparation
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python src/data_prep.py
+
+      - name: Upload processed data as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: processed-data
+          path: data/
+          retention-days: 7
+
+  # ── Job 2 : Model Training & Registration ─────────────────────────────
+  model-training:
+    name: "2 · Model Training & Registration"
+    needs: data-preparation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Download processed data artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: processed-data
+          path: data/
+
+      - name: Train, tune, evaluate and register model
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python src/train.py
+
+      - name: Upload model artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-artifacts
+          path: model/
+          retention-days: 30
+
+  # ── Job 3 : Deploy to Hugging Face Space ──────────────────────────────
+  deploy:
+    name: "3 · Deploy to HF Space"
+    needs: model-training
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Push deployment files to HF Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python src/deploy.py
+
+  # ── Job 4 : Push results back to main branch ──────────────────────────
+  update-main:
+    name: "4 · Push Results to main"
+    needs: model-training
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_PAT }}
+          fetch-depth: 0
+
+      - name: Download model artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: model-artifacts
+          path: model/
+
+      - name: Commit and push model metadata to main
+        run: |
+          git config --global user.name  "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add model/metadata.json
+          git diff --staged --quiet || (
+            git commit -m "ci: update model artifacts after pipeline run [skip ci]" &&
+            git push origin main
+          )
+          echo "Results committed and pushed to main."
