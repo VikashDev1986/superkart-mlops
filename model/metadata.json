@@ -4,11 +4,11 @@
     "model__max_depth": 10,
     "model__n_estimators": 300
   },
-  "cv_rmse": 295.0773,
-  "test_rmse": 304.8005,
-  "test_mae": 132.0601,
-  "test_r2": 0.9206,
-  "test_mape_pct": 5.0403,
+  "cv_rmse": 308.2841,
+  "test_rmse": 259.1496,
+  "test_mae": 112.8698,
+  "test_r2": 0.9421,
+  "test_mape_pct": 4.2556,
   "features": [
     "Product_Weight",
     "Product_Allocated_Area",
