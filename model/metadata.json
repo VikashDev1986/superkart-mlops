@@ -2,13 +2,13 @@
   "model_type": "Random Forest",
   "best_params": {
     "model__max_depth": 10,
-    "model__n_estimators": 300
+    "model__n_estimators": 200
   },
-  "cv_rmse": 308.2841,
-  "test_rmse": 259.1496,
-  "test_mae": 112.8698,
-  "test_r2": 0.9421,
-  "test_mape_pct": 4.2556,
+  "cv_rmse": 310.3188,
+  "test_rmse": 298.1646,
+  "test_mae": 124.5654,
+  "test_r2": 0.9227,
+  "test_mape_pct": 4.8145,
   "features": [
     "Product_Weight",
     "Product_Allocated_Area",
